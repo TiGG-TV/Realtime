@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidChat() {
+      return request.resource.data.userId == request.auth.uid
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 100;
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) && (
+        // Prevent setting/modifying admin status
+        !request.resource.data.keys().hasAll(['admin']) ||
+        (resource != null && resource.data.admin == request.resource.data.admin)
+      );
+    }
+
+    // Profiles collection rules
+    match /profiles/{profileId} {
+      // Allow reading profiles if authenticated and user owns the profile
+      allow read: if isAuthenticated() && (
+        // Allow reading all profiles owned by the user
+        resource.data.userId == request.auth.uid ||
+        // Allow reading profile by document ID
+        exists(/databases/$(database)/documents/profiles/$(profileId)) &&
+        get(/databases/$(database)/documents/profiles/$(profileId)).data.userId == request.auth.uid
+      );
+      
+      // Allow creating new profiles
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      
+      // Allow updating and deleting own profiles
+      allow update, delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Scores collection rules
+    match /scores/{scoreId} {
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      allow write: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.score is number &&
+        request.resource.data.score >= 0 &&
+        request.resource.data.score <= 100 &&
+        request.resource.data.timestamp is timestamp;
+    }
+    
+    // Chats collection rules
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      
+      // Allow create with validation
+      allow create: if isAuthenticated() && 
+        isValidChat() &&
+        request.resource.data.feedback is list &&
+        request.resource.data.areasForImprovement is list;
+      
+      // Allow update with validation
+      allow update: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid &&
+        isValidChat();
+      
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Avatar images rules
+    match /avatars/{userId} {
+      // Allow read if authenticated
+      allow read: if isAuthenticated();
+      // Allow write if user owns the file
+      allow write: if isOwner(userId) && 
+        // Validate content type
+        request.resource.contentType.matches('image/.*') && 
+        // Limit file size to 5MB
+        request.resource.size < 5 * 1024 * 1024;
+    }
+  }
+}

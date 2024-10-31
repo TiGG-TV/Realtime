@@ -1,0 +1,21 @@
+modules = ["nodejs-20", "web"]
+run = "npm start"
+entrypoint = "src/index.tsx"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "npm run start"]
+build = ["sh", "-c", "npm run build"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
+
+[env]
+REACT_APP_OPENAI_API_KEY = "$REACT_APP_OPENAI_API_KEY"
