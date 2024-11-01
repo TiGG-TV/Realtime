@@ -1,5 +1,5 @@
 import { getFirestore, collection, addDoc, getDocs, doc, getDoc } from 'firebase/firestore';
-import { auth, db, storage } from '../firebase/config';
+import { auth, db, storage } from './config';
 
 export interface BlogPost {
   id: string;
